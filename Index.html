@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro de Gasolina</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#0b0e13;
+    --ink-soft:#48566a;
+    --paper:#f2f5f9;
+    --panel:#ffffff;
+    --navy:#0c1f3d;
+    --navy-soft:#1a2f57;
+    --accent:#1a56db;
+    --accent-dark:#123f9e;
+    --good:#1a56db;
+    --danger:#0b0e13;
+    --line:#dde3ec;
+    --line-strong:#aebccc;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:'Oswald',sans-serif; letter-spacing:.02em; margin:0;}
+  .mono{font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums;}
+
+  .topbar{
+    background:linear-gradient(135deg,var(--navy) 0%, var(--navy-soft) 100%);
+    color:#f2efe6;
+    padding:22px 18px 20px;
+    display:flex; align-items:center; gap:14px;
+    border-bottom:4px solid var(--accent);
+  }
+  .brand-mark{
+    font-size:30px; line-height:1;
+    background:var(--accent);
+    width:48px;height:48px;border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .topbar h1{font-size:22px; text-transform:uppercase;}
+  .topbar .sub{margin:2px 0 0; font-size:13px; color:#c7cdd2; font-weight:400;}
+
+  nav.tabs{
+    display:flex; overflow-x:auto; gap:4px;
+    background:var(--navy-soft); padding:6px 8px;
+    position:sticky; top:0; z-index:10;
+  }
+  nav.tabs::-webkit-scrollbar{height:0;}
+  .tab{
+    flex:1 1 0;
+    background:transparent; border:1px solid rgba(255,255,255,.18);
+    color:#dfe3e6; padding:7px 6px; border-radius:7px;
+    font-family:'Inter'; font-size:11.5px; font-weight:600; cursor:pointer;
+    white-space:nowrap; text-align:center;
+  }
+  .tab.active{background:var(--accent); border-color:var(--accent); color:#ffffff;}
+
+  main{max-width:760px; margin:0 auto; padding:18px 14px 60px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .card{
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; padding:18px; margin-bottom:16px;
+    box-shadow:0 1px 2px rgba(20,30,35,.04);
+  }
+  h2{font-size:18px; color:var(--navy); margin-bottom:4px;}
+  .hint{color:var(--ink-soft); font-size:13.5px; margin:4px 0 14px;}
+
+  form{display:grid; gap:12px;}
+  label{display:flex; flex-direction:column; gap:5px; font-size:13px; font-weight:600; color:var(--ink-soft);}
+  input, select{
+    font-family:'Inter'; font-size:15px; padding:10px 11px;
+    border:1.5px solid var(--line-strong); border-radius:8px;
+    background:#fdfcf9; color:var(--ink);
+  }
+  input:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent);}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+
+  .km-preview{
+    font-family:'IBM Plex Mono'; font-size:14px; padding:8px 10px;
+    background:#eef2f8; border-radius:8px; border:1px dashed var(--line-strong);
+    color:var(--ink-soft);
+  }
+  .km-preview.ok{color:var(--good); border-color:var(--good);}
+  .km-preview.bad{color:var(--danger); border-color:var(--danger); font-weight:700;}
+
+  button{
+    font-family:'Inter'; font-weight:700; font-size:14.5px;
+    padding:11px 16px; border-radius:9px; border:none; cursor:pointer;
+  }
+  button[type=submit]{background:var(--accent); color:#ffffff;}
+  button[type=submit]:hover{background:var(--accent-dark);}
+  .btn-secondary{background:var(--navy); color:#f2efe6; width:100%; margin-top:4px;}
+  .btn-link{background:transparent; color:var(--ink-soft); font-weight:600; text-decoration:underline; padding:4px 0;}
+  .btn-small{padding:6px 10px; font-size:12.5px; border-radius:6px;}
+  .btn-danger{background:#ffffff; color:var(--ink); border:1.5px solid var(--ink);}
+  .btn-print{background:var(--navy); color:#fff;}
+
+  .status{font-size:13px; font-weight:600; min-height:16px; margin:2px 0 0;}
+  .status.ok{color:var(--good);}
+  .status.bad{color:var(--danger); font-weight:800;}
+
+  .table-wrap{overflow-x:auto; margin-top:8px;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  th,td{padding:8px 9px; text-align:left; border-bottom:1px solid var(--line);}
+  th{font-family:'Oswald'; font-size:11.5px; text-transform:uppercase; color:var(--ink-soft); letter-spacing:.04em;}
+  td.num{font-family:'IBM Plex Mono';}
+  tr:last-child td{border-bottom:none;}
+  .actions-cell{display:flex; gap:6px; white-space:nowrap;}
+  .empty{color:var(--ink-soft); font-size:13.5px; padding:10px 2px;}
+
+  .sheet-card{
+    border:1px solid var(--line); border-radius:10px; padding:12px 14px;
+    margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .sheet-card .info b{display:block; font-size:14px;}
+  .sheet-card .info span{font-size:12.5px; color:var(--ink-soft);}
+  .sheet-card.pending{border-style:dashed; background:#eef3fb;}
+
+  footer.note{max-width:760px; margin:0 auto 40px; padding:0 14px; color:var(--ink-soft); font-size:12.5px;}
+
+  /* ---- Print sheet look (also used on screen inside cards) ---- */
+  .paper{
+    background:#fff; border:1px solid #333; padding:16px;
+  }
+  .paper h3.title{font-family:'Oswald'; text-align:center; font-size:17px; letter-spacing:.05em; margin-bottom:12px; text-transform:uppercase;}
+  .paper .info-box{border:1px solid #333; width:62%; margin:0 0 12px auto;}
+  .paper .info-box div{padding:5px 9px; border-bottom:1px solid #333; font-size:12px;}
+  .paper .info-box div:last-child{border-bottom:none;}
+  .paper .info-box b{display:inline-block; width:82px;}
+  .paper table{border:1px solid #333; width:100%; border-collapse:collapse;}
+  .paper th, .paper td{border:1px solid #333; padding:5px 6px; font-size:11.5px;}
+  .paper th{background:#eee; font-family:'Oswald'; text-transform:uppercase; font-size:10px;}
+  .paper td.rownum{text-align:center; color:#555; width:24px;}
+  .paper table.totals-table{margin-top:12px;}
+  .paper table.totals-table th{font-size:9.5px; padding:7px 6px;}
+  .paper table.totals-table td{font-family:'IBM Plex Mono'; font-size:14px; font-weight:700; text-align:center;}
+  .paper .sign{display:flex; justify-content:space-between; margin-top:16px; font-size:11.5px;}
+  .paper .sign > div{width:45%; text-align:center;}
+  .paper .sign-label{font-size:11px; font-weight:600; text-transform:uppercase; margin-bottom:46px;}
+  .paper .sign-line{border-top:1px solid #333; padding-top:5px;}
+
+  #print-root{display:none;}
+  @media print{
+    body > *:not(#print-root){display:none !important;}
+    #print-root{display:block !important;}
+    body{background:#fff;}
+    .print-page{page-break-after:always; padding:10mm;}
+    .print-page:last-child{page-break-after:auto;}
+  }
+
+  /* ---- Ajustes para celular ---- */
+  @media (max-width:480px){
+    .topbar{padding:16px 14px 16px; gap:10px;}
+    .topbar h1{font-size:19px;}
+    .brand-mark{width:40px; height:40px; font-size:24px;}
+    main{padding:14px 10px 50px;}
+    .card{padding:14px;}
+    .row2{grid-template-columns:1fr;}
+    input, select{font-size:16px; padding:12px 11px;}
+    button{width:100%;}
+    .btn-link{width:auto;}
+    .btn-small{width:auto;}
+    .actions-cell{flex-wrap:wrap;}
+    .sheet-card{flex-direction:column; align-items:stretch;}
+    .sheet-card button{width:100%;}
+    table{font-size:12.5px;}
+    th, td{padding:7px 6px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand-mark">⛽</div>
+  <div>
+    <h1>Registro de Gasolina</h1>
+    <p class="sub">Auto de la empresa</p>
+  </div>
+</div>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="registrar">Registrar</button>
+  <button class="tab" data-tab="cargas">Cargas</button>
+  <button class="tab" data-tab="historial">Historial</button>
+  <button class="tab" data-tab="imprimir">Imprimir</button>
+</nav>
+
+<main>
+
+  <!-- REGISTRAR VIAJE -->
+  <section id="panel-registrar" class="panel active">
+    <div class="card" id="pendientes-card" style="display:none;">
+      <h2>Viajes por completar</h2>
+      <p class="hint">Toca uno para anotar el kilometraje de llegada.</p>
+      <div class="table-wrap" id="pendientes-lista"></div>
+    </div>
+
+    <div class="card">
+      <h2 id="v-form-title">Anota tu salida</h2>
+      <p class="hint" id="v-form-hint">Cuando te subas al coche, anota esto. Más tarde, cuando regreses, vuelve a abrir la app y anota la llegada.</p>
+      <form id="form-viaje">
+        <label>Fecha
+          <input type="date" id="v-fecha" required>
+        </label>
+        <div class="row2">
+          <label>Km de salida
+            <input type="number" id="v-salida" inputmode="numeric" required>
+          </label>
+          <label>Origen
+            <select id="v-origen-select">
+              <option value="Casa">Casa</option>
+              <option value="Trabajo">Trabajo</option>
+              <option value="Fin de semana">Fin de semana</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </label>
+        </div>
+        <label class="otro-field" id="v-origen-otro-wrap" style="display:none;">Especifica el origen
+          <input id="v-origen-otro" placeholder="Escribe el lugar">
+        </label>
+        <div class="row2 llegada-fields" id="llegada-fields" style="display:none;">
+          <label>Km de llegada
+            <input type="number" id="v-llegada" inputmode="numeric">
+          </label>
+          <label>Destino
+            <select id="v-destino-select">
+              <option value="Casa">Casa</option>
+              <option value="Trabajo">Trabajo</option>
+              <option value="Fin de semana">Fin de semana</option>
+              <option value="Otro">Otro</option>
+            </select>
+          </label>
+        </div>
+        <label class="otro-field" id="v-destino-otro-wrap" style="display:none;">Especifica el destino
+          <input id="v-destino-otro" placeholder="Escribe el lugar">
+        </label>
+        <div class="km-preview" id="v-preview">Total del recorrido: —</div>
+        <button type="submit" id="v-submit-btn">Guardar salida</button>
+        <button type="button" class="btn-link" id="v-cancel-edit" style="display:none;">Cancelar</button>
+      </form>
+      <p class="status" id="viaje-status"></p>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:15px; margin-bottom:8px;">Últimos viajes registrados</h3>
+      <div class="table-wrap" id="viajes-recientes"></div>
+    </div>
+  </section>
+
+  <!-- CARGAS -->
+  <section id="panel-cargas" class="panel">
+    <div class="card">
+      <h2>Registrar carga de gasolina</h2>
+      <p class="hint">Captura los datos del ticket que entrega la tarjeta de la empresa (Ticket Car / Edenred).</p>
+      <form id="form-carga">
+        <label>Fecha de la carga
+          <input type="date" id="c-fecha" required>
+        </label>
+        <div class="row2">
+          <label>Litros cargados
+            <input type="number" step="0.01" id="c-litros" required>
+          </label>
+          <label>Precio por litro
+            <input type="number" step="0.01" id="c-precio" required>
+          </label>
+        </div>
+        <label>Total a pagar
+          <input type="number" step="0.01" id="c-total" placeholder="Se calcula solo, pero puedes ajustarlo">
+        </label>
+        <button type="submit" id="c-submit-btn">Guardar carga</button>
+        <button type="button" class="btn-link" id="c-cancel-edit" style="display:none;">Cancelar edición</button>
+      </form>
+      <p class="status" id="carga-status"></p>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:15px; margin-bottom:8px;">Cargas registradas</h3>
+      <div class="table-wrap" id="cargas-lista"></div>
+    </div>
+  </section>
+
+  <!-- HISTORIAL -->
+  <section id="panel-historial" class="panel">
+    <div class="card">
+      <h2>Historial de viajes</h2>
+      <label style="max-width:220px;">Filtrar por mes
+        <input type="month" id="h-mes">
+      </label>
+      <div class="table-wrap" id="historial-tabla" style="margin-top:12px;"></div>
+    </div>
+  </section>
+
+  <!-- IMPRIMIR -->
+  <section id="panel-imprimir" class="panel">
+    <div class="card">
+      <h2>Hojas para imprimir</h2>
+      <p class="hint">Cada hoja junta los viajes desde la carga anterior hasta la carga seleccionada, igual que el formato de papel. Imprímela y engrapa el ticket correspondiente.</p>
+      <div id="hojas-lista"></div>
+    </div>
+    <div class="card">
+      <h2>Exportar respaldo</h2>
+      <p class="hint">Descarga un Excel con todos los viajes y cargas guardados, por si necesitas un respaldo aparte de la app.</p>
+      <button class="btn-secondary" id="btn-excel">Descargar Excel completo</button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="note">Los datos se guardan automáticamente en esta app. Usa "Descargar Excel completo" de vez en cuando para tener un respaldo aparte.</footer>
+
+<div id="print-root"></div>
+
+<script>
+// Datos fijos del vehículo (no editables desde la app)
+const config = {conductor:'Edgar Rubio Soriano', marca:'Nissan', modelo:'2014', placas:''};
+let viajes = [];
+let cargas = [];
+let editingViajeId = null;
+let editingCargaId = null;
+let viajeFormMode = 'salida';
+
+const $ = (sel) => document.querySelector(sel);
+const todayStr = () => new Date().toISOString().slice(0,10);
+const money = (n) => (isFinite(n)?Number(n):0).toLocaleString('es-MX',{minimumFractionDigits:2, maximumFractionDigits:2});
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+// ---------- Storage (localStorage del navegador, funciona sin conexión a Claude) ----------
+async function loadAll(){
+  try{
+    const raw = localStorage.getItem('viajes');
+    if(raw) viajes = JSON.parse(raw);
+  }catch(e){}
+  try{
+    const raw = localStorage.getItem('cargas');
+    if(raw) cargas = JSON.parse(raw);
+  }catch(e){}
+  renderPendientes();
+  renderViajesRecientes();
+  renderCargas();
+  renderHistorial();
+  renderHojas();
+}
+async function persist(key, value){
+  try{
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  }catch(e){
+    console.error(e);
+    return false;
+  }
+}
+
+// ---------- Tabs ----------
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    $('#panel-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ---------- Viajes ----------
+$('#v-fecha').value = todayStr();
+function isPending(v){ return v.kmLlegada===null || v.kmLlegada===undefined || v.kmLlegada===''; }
+const LUGARES_FIJOS = ['Casa','Trabajo','Fin de semana'];
+
+function toggleOtro(selectEl, wrapEl){
+  wrapEl.style.display = selectEl.value === 'Otro' ? 'flex' : 'none';
+}
+$('#v-origen-select').addEventListener('change', ()=> toggleOtro($('#v-origen-select'), $('#v-origen-otro-wrap')));
+$('#v-destino-select').addEventListener('change', ()=> toggleOtro($('#v-destino-select'), $('#v-destino-otro-wrap')));
+
+function getLugarValue(selectId, otroId){
+  const sel = $(selectId).value;
+  if(sel === 'Otro') return $(otroId).value.trim();
+  return sel;
+}
+function setLugarField(selectId, otroWrapId, otroId, value){
+  const selectEl = $(selectId);
+  const wrapEl = $(otroWrapId);
+  if(LUGARES_FIJOS.includes(value)){
+    selectEl.value = value;
+    wrapEl.style.display = 'none';
+    $(otroId).value = '';
+  } else {
+    selectEl.value = 'Otro';
+    wrapEl.style.display = 'flex';
+    $(otroId).value = value || '';
+  }
+}
+
+function updatePreview(){
+  const s = $('#v-salida').value;
+  const l = $('#v-llegada').value;
+  const prev = $('#v-preview');
+  if(s === '' || l === ''){
+    prev.textContent = 'Total del recorrido: —';
+    prev.className = 'km-preview';
+    return;
+  }
+  const total = Number(l) - Number(s);
+  if(total < 0){
+    prev.textContent = 'El kilometraje de llegada no puede ser menor al de salida.';
+    prev.className = 'km-preview bad';
+  } else {
+    prev.textContent = 'Total del recorrido: ' + total + ' km';
+    prev.className = 'km-preview ok';
+  }
+}
+$('#v-salida').addEventListener('input', updatePreview);
+$('#v-llegada').addEventListener('input', updatePreview);
+
+// Modo del formulario: 'salida' (crear nuevo, solo salida) o 'editar' (completar llegada o corregir cualquier dato)
+function setFormMode(mode){
+  viajeFormMode = mode;
+  const llegadaFields = $('#llegada-fields');
+  if(mode === 'salida'){
+    llegadaFields.style.display = 'none';
+    $('#v-preview').style.display = 'none';
+    $('#v-destino-otro-wrap').style.display = 'none';
+    toggleOtro($('#v-origen-select'), $('#v-origen-otro-wrap'));
+    $('#v-form-title').textContent = 'Anota tu salida';
+    $('#v-form-hint').textContent = 'Cuando te subas al coche, anota esto. Más tarde, cuando regreses, vuelve a abrir la app y anota la llegada.';
+    $('#v-submit-btn').textContent = 'Guardar salida';
+    $('#v-cancel-edit').style.display = 'none';
+  } else {
+    llegadaFields.style.display = 'grid';
+    $('#v-preview').style.display = 'block';
+    toggleOtro($('#v-origen-select'), $('#v-origen-otro-wrap'));
+    toggleOtro($('#v-destino-select'), $('#v-destino-otro-wrap'));
+    $('#v-form-title').textContent = 'Completar viaje';
+    $('#v-form-hint').textContent = 'Anota el kilometraje de llegada y el destino para cerrar este viaje.';
+    $('#v-submit-btn').textContent = 'Guardar viaje';
+    $('#v-cancel-edit').style.display = 'inline-block';
+  }
+}
+
+$('#form-viaje').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const fecha = $('#v-fecha').value;
+  const kmSalida = Number($('#v-salida').value);
+  const origen = getLugarValue('#v-origen-select', '#v-origen-otro');
+  const llegadaVal = $('#v-llegada').value;
+  const kmLlegada = llegadaVal === '' ? null : Number(llegadaVal);
+  const destino = kmLlegada === null ? '' : getLugarValue('#v-destino-select', '#v-destino-otro');
+  const st = $('#viaje-status');
+  if($('#v-origen-select').value === 'Otro' && !origen){
+    st.textContent = 'Escribe la descripción del origen.';
+    st.className = 'status bad';
+    return;
+  }
+  if(kmLlegada !== null && $('#v-destino-select').value === 'Otro' && !destino){
+    st.textContent = 'Escribe la descripción del destino.';
+    st.className = 'status bad';
+    return;
+  }
+  if(kmLlegada !== null && kmLlegada < kmSalida){
+    st.textContent = 'Revisa los kilómetros: la llegada no puede ser menor que la salida.';
+    st.className = 'status bad';
+    return;
+  }
+  if(editingViajeId){
+    const idx = viajes.findIndex(v=>v.id===editingViajeId);
+    if(idx>-1) viajes[idx] = {...viajes[idx], fecha, kmSalida, kmLlegada, origen, destino};
+    editingViajeId = null;
+  } else {
+    viajes.push({id:uid(), fecha, kmSalida, kmLlegada, origen, destino: destino||null});
+  }
+  const ok = await persist('viajes', viajes);
+  st.textContent = ok ? (kmLlegada===null ? 'Salida guardada. No olvides anotar la llegada al volver.' : 'Viaje guardado.') : 'No se pudo guardar. Intenta de nuevo.';
+  st.className = 'status ' + (ok?'ok':'bad');
+  e.target.reset();
+  $('#v-fecha').value = todayStr();
+  setFormMode('salida');
+  updatePreview();
+  renderPendientes();
+  renderViajesRecientes();
+  renderHistorial();
+  renderHojas();
+});
+$('#v-cancel-edit').addEventListener('click', ()=>{
+  editingViajeId = null;
+  $('#form-viaje').reset();
+  $('#v-fecha').value = todayStr();
+  setFormMode('salida');
+  updatePreview();
+});
+
+function loadViajeIntoForm(id){
+  const v = viajes.find(v=>v.id===id);
+  if(!v) return;
+  editingViajeId = id;
+  $('#v-fecha').value = v.fecha;
+  $('#v-salida').value = v.kmSalida;
+  setLugarField('#v-origen-select', '#v-origen-otro-wrap', '#v-origen-otro', v.origen);
+  $('#v-llegada').value = v.kmLlegada===null||v.kmLlegada===undefined ? '' : v.kmLlegada;
+  setLugarField('#v-destino-select', '#v-destino-otro-wrap', '#v-destino-otro', v.destino || 'Trabajo');
+  setFormMode('editar');
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelector('[data-tab="registrar"]').classList.add('active');
+  $('#panel-registrar').classList.add('active');
+  updatePreview();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function viajeRowHtml(v){
+  const pending = isPending(v);
+  const total = pending ? '—' : (v.kmLlegada - v.kmSalida);
+  return `<tr>
+    <td>${v.fecha}${pending?' <span style="color:var(--accent-dark); font-weight:700; font-size:11px;">· pendiente</span>':''}</td>
+    <td class="num">${v.kmSalida}</td>
+    <td class="num">${pending?'—':v.kmLlegada}</td>
+    <td class="num">${total}</td>
+    <td>${v.origen}</td>
+    <td>${v.destino||'—'}</td>
+    <td class="actions-cell">
+      <button type="button" class="btn-small" data-edit-viaje="${v.id}">${pending?'Completar':'Editar'}</button>
+      <button type="button" class="btn-small btn-danger" data-del-viaje="${v.id}">Borrar</button>
+    </td>
+  </tr>`;
+}
+function renderPendientes(){
+  const card = $('#pendientes-card');
+  const wrap = $('#pendientes-lista');
+  const pend = viajes.filter(isPending).sort((a,b)=> a.fecha.localeCompare(b.fecha));
+  if(!pend.length){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  wrap.innerHTML = `<table><thead><tr><th>Fecha</th><th>Salida</th><th>Origen</th><th></th></tr></thead><tbody>
+    ${pend.map(v=>`<tr>
+      <td>${v.fecha}</td><td class="num">${v.kmSalida}</td><td>${v.origen}</td>
+      <td><button type="button" class="btn-small btn-print" data-edit-viaje="${v.id}">Anotar llegada</button></td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+function renderViajesRecientes(){
+  const wrap = $('#viajes-recientes');
+  const sorted = [...viajes].sort((a,b)=> b.fecha.localeCompare(a.fecha)).slice(0,8);
+  if(!sorted.length){ wrap.innerHTML = '<p class="empty">Todavía no hay viajes registrados.</p>'; return; }
+  wrap.innerHTML = `<table><thead><tr><th>Fecha</th><th>Salida</th><th>Llegada</th><th>Km</th><th>Origen</th><th>Destino</th><th></th></tr></thead><tbody>${sorted.map(viajeRowHtml).join('')}</tbody></table>`;
+}
+function renderHistorial(){
+  const wrap = $('#historial-tabla');
+  const mesFiltro = $('#h-mes').value;
+  let list = [...viajes].sort((a,b)=> a.fecha.localeCompare(b.fecha));
+  if(mesFiltro) list = list.filter(v=>v.fecha.startsWith(mesFiltro));
+  if(!list.length){ wrap.innerHTML = '<p class="empty">No hay viajes en este periodo.</p>'; return; }
+  wrap.innerHTML = `<table><thead><tr><th>Fecha</th><th>Salida</th><th>Llegada</th><th>Km</th><th>Origen</th><th>Destino</th><th></th></tr></thead><tbody>${list.map(viajeRowHtml).join('')}</tbody></table>`;
+}
+$('#h-mes').addEventListener('change', renderHistorial);
+
+document.addEventListener('click', async (e)=>{
+  const delId = e.target.getAttribute('data-del-viaje');
+  const editId = e.target.getAttribute('data-edit-viaje');
+  if(delId){
+    if(!confirm('¿Borrar este viaje?')) return;
+    viajes = viajes.filter(v=>v.id!==delId);
+    await persist('viajes', viajes);
+    renderPendientes(); renderViajesRecientes(); renderHistorial(); renderHojas();
+  }
+  if(editId){
+    loadViajeIntoForm(editId);
+  }
+});
+
+// ---------- Cargas ----------
+$('#c-fecha').value = todayStr();
+function updateCargaTotal(){
+  const l = Number($('#c-litros').value);
+  const p = Number($('#c-precio').value);
+  if(l && p) $('#c-total').value = (l*p).toFixed(2);
+}
+$('#c-litros').addEventListener('input', updateCargaTotal);
+$('#c-precio').addEventListener('input', updateCargaTotal);
+
+$('#form-carga').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const fecha = $('#c-fecha').value;
+  const litros = Number($('#c-litros').value);
+  const precioLitro = Number($('#c-precio').value);
+  const totalPagar = $('#c-total').value ? Number($('#c-total').value) : litros*precioLitro;
+  const st = $('#carga-status');
+  if(editingCargaId){
+    const idx = cargas.findIndex(c=>c.id===editingCargaId);
+    if(idx>-1) cargas[idx] = {...cargas[idx], fecha, litros, precioLitro, totalPagar};
+    editingCargaId = null;
+    $('#c-submit-btn').textContent = 'Guardar carga';
+    $('#c-cancel-edit').style.display = 'none';
+  } else {
+    cargas.push({id:uid(), fecha, litros, precioLitro, totalPagar});
+  }
+  const ok = await persist('cargas', cargas);
+  st.textContent = ok ? 'Carga guardada.' : 'No se pudo guardar. Intenta de nuevo.';
+  st.className = 'status ' + (ok?'ok':'bad');
+  e.target.reset();
+  $('#c-fecha').value = todayStr();
+  renderCargas();
+  renderHojas();
+});
+$('#c-cancel-edit').addEventListener('click', ()=>{
+  editingCargaId = null;
+  $('#form-carga').reset();
+  $('#c-fecha').value = todayStr();
+  $('#c-submit-btn').textContent = 'Guardar carga';
+  $('#c-cancel-edit').style.display = 'none';
+});
+
+function renderCargas(){
+  const wrap = $('#cargas-lista');
+  const sorted = [...cargas].sort((a,b)=> b.fecha.localeCompare(a.fecha));
+  if(!sorted.length){ wrap.innerHTML = '<p class="empty">Todavía no hay cargas registradas.</p>'; return; }
+  wrap.innerHTML = `<table><thead><tr><th>Fecha</th><th>Litros</th><th>$/Litro</th><th>Total</th><th></th></tr></thead><tbody>
+    ${sorted.map(c=>`<tr>
+      <td>${c.fecha}</td>
+      <td class="num">${c.litros}</td>
+      <td class="num">$${money(c.precioLitro)}</td>
+      <td class="num">$${money(c.totalPagar)}</td>
+      <td class="actions-cell">
+        <button type="button" class="btn-small" data-edit-carga="${c.id}">Editar</button>
+        <button type="button" class="btn-small btn-danger" data-del-carga="${c.id}">Borrar</button>
+      </td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+document.addEventListener('click', async (e)=>{
+  const delId = e.target.getAttribute('data-del-carga');
+  const editId = e.target.getAttribute('data-edit-carga');
+  if(delId){
+    if(!confirm('¿Borrar esta carga?')) return;
+    cargas = cargas.filter(c=>c.id!==delId);
+    await persist('cargas', cargas);
+    renderCargas(); renderHojas();
+  }
+  if(editId){
+    const c = cargas.find(c=>c.id===editId);
+    if(!c) return;
+    editingCargaId = editId;
+    $('#c-fecha').value = c.fecha;
+    $('#c-litros').value = c.litros;
+    $('#c-precio').value = c.precioLitro;
+    $('#c-total').value = c.totalPagar;
+    $('#c-submit-btn').textContent = 'Actualizar carga';
+    $('#c-cancel-edit').style.display = 'inline-block';
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    document.querySelector('[data-tab="cargas"]').classList.add('active');
+    $('#panel-cargas').classList.add('active');
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+});
+
+// ---------- Hojas / Sheets ----------
+function computeSheets(){
+  const cargasSorted = [...cargas].sort((a,b)=> a.fecha.localeCompare(b.fecha));
+  const viajesSorted = viajes.filter(v=>!isPending(v)).sort((a,b)=> a.fecha.localeCompare(b.fecha));
+  const sheets = [];
+  let prevDate = null;
+  cargasSorted.forEach(carga=>{
+    const rows = viajesSorted.filter(v => (!prevDate || v.fecha > prevDate) && v.fecha <= carga.fecha);
+    const totalKm = rows.reduce((s,v)=> s + Math.max(0, v.kmLlegada - v.kmSalida), 0);
+    const rendimiento = carga.litros ? Math.round(totalKm / carga.litros) : '';
+    sheets.push({carga, rows, totalKm, rendimiento});
+    prevDate = carga.fecha;
+  });
+  const pendRows = viajesSorted.filter(v => !prevDate || v.fecha > prevDate);
+  if(pendRows.length){
+    const totalKm = pendRows.reduce((s,v)=> s + Math.max(0, v.kmLlegada - v.kmSalida), 0);
+    sheets.push({carga:null, rows:pendRows, totalKm, rendimiento:''});
+  }
+  return sheets.reverse(); // most recent first
+}
+
+function sheetPaperHtml(sheet){
+  const rowsHtml = sheet.rows.map((v,i)=>`<tr>
+      <td class="rownum">${i+1}</td>
+      <td>${v.fecha}</td><td>${v.kmSalida}</td><td>${v.kmLlegada}</td>
+      <td>${v.kmLlegada - v.kmSalida}</td><td>${v.origen}</td><td>${v.destino}</td>
+    </tr>`).join('') || '<tr><td class="rownum">1</td><td colspan="6" style="text-align:center;color:#888;">Sin viajes en este periodo</td></tr>';
+  const litros = sheet.carga ? sheet.carga.litros : '—';
+  const precio = sheet.carga ? money(sheet.carga.precioLitro) : '—';
+  const total = sheet.carga ? money(sheet.carga.totalPagar) : '0.00';
+  return `<div class="paper">
+    <h3 class="title">Control de Consumo Gasolina</h3>
+    <div class="info-box">
+      <div><b>Conductor:</b> ${config.conductor||'—'}</div>
+      <div><b>Marca:</b> ${config.marca||'—'}</div>
+      <div><b>Modelo:</b> ${config.modelo||'—'}</div>
+      <div><b>Placas:</b> ${config.placas||'—'}</div>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Fecha</th><th>Km salida</th><th>Km llegada</th><th>Total km</th><th>Origen</th><th>Destino</th></tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <table class="totals-table">
+      <thead><tr><th>Total km</th><th>Rendimiento</th><th>Litros</th><th>Precio x litro</th><th>Total a pagar</th></tr></thead>
+      <tbody><tr><td>${sheet.totalKm}</td><td>${sheet.rendimiento||'—'}</td><td>${litros}</td><td>${precio}</td><td>$${total}</td></tr></tbody>
+    </table>
+    <div class="sign">
+      <div>
+        <div class="sign-label">Elaboró reporte</div>
+        <div class="sign-line">${config.conductor||''}</div>
+      </div>
+      <div>
+        <div class="sign-label">Vo.Bo.</div>
+        <div class="sign-line">&nbsp;</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderHojas(){
+  const wrap = $('#hojas-lista');
+  const sheets = computeSheets();
+  if(!sheets.length){ wrap.innerHTML = '<p class="empty">Registra viajes y cargas para generar hojas.</p>'; return; }
+  wrap.innerHTML = sheets.map((s,i)=>{
+    const label = s.carga ? ('Carga del ' + s.carga.fecha) : 'Periodo actual (sin ticket todavía)';
+    const range = s.rows.length ? (s.rows[0].fecha + ' → ' + s.rows[s.rows.length-1].fecha) : 'sin viajes';
+    return `<div class="sheet-card ${s.carga?'':'pending'}">
+      <div class="info">
+        <b>${label}</b>
+        <span>${range} · ${s.rows.length} viaje(s) · ${s.totalKm} km</span>
+      </div>
+      <button type="button" class="btn-small btn-print" data-print-sheet="${i}">Imprimir</button>
+    </div>`;
+  }).join('');
+  wrap.dataset.sheetsJson = ''; // marker
+  window.__sheetsCache = sheets;
+}
+document.addEventListener('click', (e)=>{
+  const idx = e.target.getAttribute('data-print-sheet');
+  if(idx !== null && idx !== undefined && e.target.hasAttribute('data-print-sheet')){
+    const sheet = window.__sheetsCache[Number(idx)];
+    const root = $('#print-root');
+    root.innerHTML = `<div class="print-page">${sheetPaperHtml(sheet)}</div>`;
+    root.classList.add('printing');
+    setTimeout(()=>window.print(), 50);
+  }
+});
+window.addEventListener('afterprint', ()=>{
+  $('#print-root').classList.remove('printing');
+  $('#print-root').innerHTML = '';
+});
+
+// ---------- Excel export ----------
+$('#btn-excel').addEventListener('click', ()=>{
+  const wb = XLSX.utils.book_new();
+  const viajesData = [...viajes].sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(v=>({
+    Fecha:v.fecha, 'Km salida':v.kmSalida, 'Km llegada': isPending(v)?'':v.kmLlegada,
+    'Total km': isPending(v)?'':(v.kmLlegada-v.kmSalida), Origen:v.origen, Destino:v.destino||(isPending(v)?'(pendiente)':'')
+  }));
+  const cargasData = [...cargas].sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(c=>({
+    Fecha:c.fecha, Litros:c.litros, 'Precio x litro':c.precioLitro, 'Total a pagar':c.totalPagar
+  }));
+  const wsV = XLSX.utils.json_to_sheet(viajesData.length?viajesData:[{Fecha:'',"Km salida":'',"Km llegada":'',"Total km":'',Origen:'',Destino:''}]);
+  const wsC = XLSX.utils.json_to_sheet(cargasData.length?cargasData:[{Fecha:'',Litros:'',"Precio x litro":'',"Total a pagar":''}]);
+  XLSX.utils.book_append_sheet(wb, wsV, 'Viajes');
+  XLSX.utils.book_append_sheet(wb, wsC, 'Cargas');
+  XLSX.writeFile(wb, 'control_gasolina.xlsx');
+});
+
+// ---------- Init ----------
+setFormMode('salida');
+loadAll();
+updatePreview();
+</script>
+</body>
+</html>
